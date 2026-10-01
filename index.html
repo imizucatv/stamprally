@@ -231,15 +231,43 @@
     }
 
     // --- その他モーダル制御や復元処理 ---
-    function executeRestore() {
+    // 5. データ復元処理（本番用）
+    async function executeRestore() {
       const codeInput = document.getElementById('restore-code-input').value.trim().toUpperCase();
       if (!codeInput) return alert("引き継ぎコードを入力してください。");
-      localStorage.setItem('stamp_user_code', codeInput);
-      document.getElementById('card-user-code').innerText = codeInput;
-      document.getElementById('modal-user-code').innerText = codeInput;
-      closeRestoreModal();
-      alert(`データを同期・復元しました！`);
-      renderStamps();
+
+      // 復元ボタンのテキストを「復元中...」にする
+      const restoreBtn = document.querySelector('#restore-modal button.bg-indigo-600');
+      restoreBtn.innerText = "復元中...";
+      restoreBtn.disabled = true;
+
+      try {
+        // GASへ問い合わせ（URLの末尾に ?userCode=STP-XXXX を付けて送信）
+        const response = await fetch(GAS_URL + "?userCode=" + codeInput);
+        const result = await response.json();
+
+        if (result.status === "success") {
+          // スプレッドシートから取得したスタンプ履歴をスマホに上書き保存
+          localStorage.setItem('stamp_user_code', codeInput);
+          localStorage.setItem('my_stamps', JSON.stringify(result.stamps));
+          
+          document.getElementById('card-user-code').innerText = codeInput;
+          document.getElementById('modal-user-code').innerText = codeInput;
+          
+          closeRestoreModal();
+          alert(`過去のスタンプデータを完全に復元しました！`);
+          renderStamps();
+        } else {
+          alert("入力されたコードが見つかりません。入力ミスがないかご確認ください。");
+        }
+      } catch (error) {
+        console.error("復元エラー:", error);
+        alert("通信エラーが発生しました。電波の良いところで再度お試しください。");
+      } finally {
+        // ボタンを元に戻す
+        restoreBtn.innerText = "復元する";
+        restoreBtn.disabled = false;
+      }
     }
 
     function showScreenshotModal(manual) { document.getElementById('screenshot-modal').classList.remove('hidden'); }
