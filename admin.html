@@ -325,7 +325,8 @@
           alert("保存エラー: " + result.message);
         }
       } catch (e) {
-        alert("保存中に通信エラーが発生しました。");
+        alert("通信エラー詳細: " + e.message);
+        console.error(e);
       }
     }
   </script>
