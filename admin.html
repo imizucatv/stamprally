@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スタンプラリー 管理者ダッシュボード</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- アイコン表示用 FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- ★ QRコード自動生成用ライブラリ (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+
+  <!-- パスワード認証モーダル（初期表示） -->
+  <div id="auth-modal" class="fixed inset-0 bg-slate-900 bg-opacity-95 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <i class="fa-solid fa-user-shield"></i>
+      </div>
+      <h2 class="text-xl font-bold mb-1">管理者ログイン</h2>
+      <p class="text-xs text-slate-500 mb-4">管理用パスワードを入力してください</p>
+      
+      <input type="password" id="admin-pass-input" placeholder="パスワードを入力" class="w-full text-center text-lg p-3 border-2 border-slate-200 rounded-xl outline-none focus:border-indigo-600 mb-4">
+      
+      <button onclick="loginAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition">
+        ログイン
+      </button>
+    </div>
+  </div>
+
+  <!-- 管理者メイン画面 -->
+  <div id="admin-main" class="hidden">
+    <!-- ヘッダー -->
+    <header class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-indigo-400"></i> 管理者ダッシュボード
+      </h1>
+      <button onclick="logoutAdmin()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+        <i class="fa-solid fa-right-from-bracket mr-1"></i>ログアウト
+      </button>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 space-y-6">
+
+      <!-- 概要カード -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+          <p class="text-xs font-bold text-slate-400">総参加ユーザー数</p>
+          <p id="total-users" class="text-3xl font-black text-indigo-600 mt-1">0 人</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+          <p class="text-xs font-bold text-slate-400">設定済みスポット数</p>
+          <p id="total-spots" class="text-3xl font-black text-emerald-600 mt-1">0 か所</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 col-span-2 md:col-span-1">
+          <p class="text-xs font-bold text-slate-400">コンプリート達成者</p>
+          <p id="completed-users" class="text-3xl font-black text-amber-500 mt-1">0 人</p>
+        </div>
+      </div>
+
+      <!-- スポット管理セクション -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-map-pin text-indigo-500 mr-2"></i>スポット管理</h2>
+          <button onclick="addNewSpotRow()" class="text-xs bg-indigo-50 text-indigo-600 font-bold px-3 py-2 rounded-xl hover:bg-indigo-100 border border-indigo-200">
+            <i class="fa-solid fa-plus mr-1"></i>スポット追加
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-500">
+                <th class="p-2 w-12">ID</th>
+                <th class="p-2">スポット名</th>
+                <th class="p-2">エリア名</th>
+                <th class="p-2 w-20">画像プレビュー</th>
+                <th class="p-2 w-36">現地印刷用QR</th>
+                <th class="p-2 w-12">操作</th>
+              </tr>
+            </thead>
+            <tbody id="spots-table-body" class="divide-y divide-slate-100">
+              <!-- JSで動的描画 -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-4 text-right">
+          <button onclick="saveSpotsConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>スポット変更を保存
+          </button>
+        </div>
+      </div>
+
+      <!-- 参加ユーザー状況一覧 -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <h2 class="font-bold text-lg text-slate-800 mb-4"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>参加ユーザー獲得状況</h2>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500">
+              <tr>
+                <th class="p-2">引き継ぎコード</th>
+                <th class="p-2">獲得スタンプ数</th>
+                <th class="p-2">獲得スポットID</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body" class="divide-y divide-slate-100">
+              <!-- JSで動的描画 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= モーダル: QRコード表示・ダウンロード画面 ================= -->
+  <div id="qr-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl relative">
+      <h3 id="qr-modal-title" class="text-lg font-bold text-slate-800 mb-0.5">スポット名</h3>
+      <p id="qr-modal-sub" class="text-xs text-slate-500 mb-4">エリア名</p>
+
+      <!-- 生成されたQRコードがここに入ります -->
+      <div id="qrcode-container" class="flex justify-center my-4 p-4 bg-white rounded-2xl shadow-inner border border-slate-200"></div>
+
+      <p class="text-[10px] text-slate-400 mb-4">このQRコードを印刷して現地に設置してください</p>
+
+      <div class="flex gap-2">
+        <button onclick="closeQrModal()" class="w-1/2 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl">閉じる</button>
+        <button onclick="downloadQrCode()" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-1">
+          <i class="fa-solid fa-download"></i> PNG保存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxiNmYw0-5AKITd3ESi4nkeysJFSAEnyt3Ibxs24QentQ5bqGKgCaAoqQ2uZN-1w1qDUw/exec";
+    let currentPass = "";
+    let spotsData = [];
+    let usersData = [];
+    let currentQrFileName = "";
+
+    // ログイン処理
+    async function loginAdmin() {
+      const pass = document.getElementById('admin-pass-input').value;
+      if (!pass) return alert("パスワードを入力してください。");
+
+      try {
+        const response = await fetch(`${GAS_URL}?action=adminGet&pass=${encodeURIComponent(pass)}`);
+        const result = await response.json();
+
+        if (result.status === "success") {
+          currentPass = pass;
+          spotsData = result.spots;
+          usersData = result.users;
+
+          document.getElementById('auth-modal').classList.add('hidden');
+          document.getElementById('admin-main').classList.remove('hidden');
+
+          renderDashboard();
+        } else {
+          alert("パスワードが間違っています。");
+        }
+      } catch (e) {
+        alert("通信エラーが発生しました。");
+      }
+    }
+
+    function logoutAdmin() {
+      currentPass = "";
+      document.getElementById('admin-pass-input').value = "";
+      document.getElementById('auth-modal').classList.remove('hidden');
+      document.getElementById('admin-main').classList.add('hidden');
+    }
+
+    // ダッシュボード描画
+    function renderDashboard() {
+      document.getElementById('total-users').innerText = `${usersData.length} 人`;
+      document.getElementById('total-spots').innerText = `${spotsData.length} か所`;
+
+      const completed = usersData.filter(u => u.stamps.length >= spotsData.length && spotsData.length > 0).length;
+      document.getElementById('completed-users').innerText = `${completed} 人`;
+
+      // スポットテーブル描画
+      const spotsBody = document.getElementById('spots-table-body');
+      spotsBody.innerHTML = "";
+
+      spotsData.forEach((spot, index) => {
+        spotsBody.innerHTML += `
+          <tr>
+            <td class="p-2 font-bold">${spot.id}</td>
+            <td class="p-2"><input type="text" value="${spot.name}" id="spot-name-${index}" class="border rounded p-1 w-full"></td>
+            <td class="p-2"><input type="text" value="${spot.area}" id="spot-area-${index}" class="border rounded p-1 w-full"></td>
+            <td class="p-2">
+              <img src="image/image${spot.id}.png" onerror="this.src='https://placehold.co/50x50?text=No+Img'" class="w-8 h-8 rounded border object-contain">
+            </td>
+            <td class="p-2">
+              <!-- ★ QR発行ボタン -->
+              <button onclick="openQrModal(${spot.id})" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1">
+                <i class="fa-solid fa-qrcode"></i> QR発行・表示
+              </button>
+            </td>
+            <td class="p-2">
+              <button onclick="removeSpotRow(${index})" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+
+      // ユーザーテーブル描画
+      const usersBody = document.getElementById('users-table-body');
+      usersBody.innerHTML = "";
+      usersData.forEach(u => {
+        usersBody.innerHTML += `
+          <tr>
+            <td class="p-2 font-mono font-bold text-indigo-600">${u.userCode}</td>
+            <td class="p-2 font-bold">${u.stamps.length} / ${spotsData.length} 個</td>
+            <td class="p-2 text-slate-500">${u.stamps.join(", ") || "なし"}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // ★ QRコード生成＆モーダル表示処理
+    function openQrModal(spotId) {
+      const spot = spotsData.find(s => s.id === spotId);
+      if (!spot) return;
+
+      const baseUrl = window.location.href.replace('admin.html', 'index.html');
+      const targetUrl = `${baseUrl}?spot=${spot.id}`;
+
+      document.getElementById('qr-modal-title').innerText = spot.name;
+      document.getElementById('qr-modal-sub').innerText = `エリア: ${spot.area} (ID: ${spot.id})`;
+      currentQrFileName = `QR_${spot.area}_${spot.name}.png`;
+
+      const container = document.getElementById('qrcode-container');
+      container.innerHTML = ""; // 前のQRを消去
+
+      // ライブラリでQRコードをその場生成 (200x200px)
+      new QRCode(container, {
+        text: targetUrl,
+        width: 200,
+        height: 200,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+
+      document.getElementById('qr-modal').classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
+    }
+
+    // ★ 生成されたQRコードをPNG画像として直接ダウンロード
+    function downloadQrCode() {
+      const container = document.getElementById('qrcode-container');
+      // QRCode.jsは環境によってimg要素またはcanvas要素を生成します
+      const img = container.querySelector('img');
+      const canvas = container.querySelector('canvas');
+      let imgDataUrl = "";
+
+      if (img && img.src) {
+        imgDataUrl = img.src;
+      } else if (canvas) {
+        imgDataUrl = canvas.toDataURL("image/png");
+      }
+
+      if (imgDataUrl) {
+        const link = document.createElement('a');
+        link.href = imgDataUrl;
+        link.download = currentQrFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert("画像のダウンロードに失敗しました。少し待ってから再度お試しください。");
+      }
+    }
+
+    // スポット追加行
+    function addNewSpotRow() {
+      const newId = spotsData.length > 0 ? Math.max(...spotsData.map(s => s.id)) + 1 : 1;
+      spotsData.push({ id: newId, name: `新スポット${newId}`, area: "未設定エリア", imageUrl: "" });
+      renderDashboard();
+    }
+
+    // スポット削除
+    function removeSpotRow(index) {
+      if (confirm("このスポットを削除しますか？")) {
+        spotsData.splice(index, 1);
+        renderDashboard();
+      }
+    }
+
+    // スポット変更の保存処理
+    async function saveSpotsConfig() {
+      spotsData.forEach((spot, index) => {
+        const nameInput = document.getElementById(`spot-name-${index}`);
+        const areaInput = document.getElementById(`spot-area-${index}`);
+        if (nameInput) spot.name = nameInput.value;
+        if (areaInput) spot.area = areaInput.value;
+      });
+
+      try {
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "updateSpots",
+            pass: currentPass,
+            spots: spotsData
+          })
+        });
+
+        const result = await response.json();
+        if (result.status === "success") {
+          alert("スポット情報をスプレッドシートに保存しました！");
+          loginAdmin();
+        } else {
+          alert("保存エラー: " + result.message);
+        }
+      } catch (e) {
+        alert("保存中に通信エラーが発生しました。");
+      }
+    }
+  </script>
+</body>
+</html>
