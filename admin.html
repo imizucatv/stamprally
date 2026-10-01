@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- アイコン表示用 FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- ★ QRコード自動生成用ライブラリ (CDN) -->
+  <!-- QRコード自動生成用ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800">
@@ -42,7 +42,7 @@
       </button>
     </header>
 
-    <main class="max-w-4xl mx-auto p-4 space-y-6">
+    <main class="max-w-5xl mx-auto p-4 space-y-6">
 
       <!-- 概要カード -->
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -73,12 +73,12 @@
           <table class="w-full text-left text-xs">
             <thead>
               <tr class="bg-slate-50 border-b border-slate-200 text-slate-500">
-                <th class="p-2 w-12">ID</th>
+                <th class="p-2 w-10">ID</th>
                 <th class="p-2">スポット名</th>
                 <th class="p-2">エリア名</th>
-                <th class="p-2 w-20">画像プレビュー</th>
-                <th class="p-2 w-36">現地印刷用QR</th>
-                <th class="p-2 w-12">操作</th>
+                <th class="p-2 w-28 text-center">スタンプ画像</th>
+                <th class="p-2 w-32">現地印刷用QR</th>
+                <th class="p-2 w-10">操作</th>
               </tr>
             </thead>
             <tbody id="spots-table-body" class="divide-y divide-slate-100">
@@ -116,13 +116,12 @@
     </main>
   </div>
 
-  <!-- ================= モーダル: QRコード表示・ダウンロード画面 ================= -->
+  <!-- ================= モーダル1: QRコード表示・ダウンロード画面 ================= -->
   <div id="qr-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl relative">
       <h3 id="qr-modal-title" class="text-lg font-bold text-slate-800 mb-0.5">スポット名</h3>
       <p id="qr-modal-sub" class="text-xs text-slate-500 mb-4">エリア名</p>
 
-      <!-- 生成されたQRコードがここに入ります -->
       <div id="qrcode-container" class="flex justify-center my-4 p-4 bg-white rounded-2xl shadow-inner border border-slate-200"></div>
 
       <p class="text-[10px] text-slate-400 mb-4">このQRコードを印刷して現地に設置してください</p>
@@ -133,6 +132,19 @@
           <i class="fa-solid fa-download"></i> PNG保存
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= モーダル2: ★画像拡大表示モーダル ================= -->
+  <div id="image-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden" onclick="closeImageModal()">
+    <div class="bg-white rounded-3xl p-4 max-w-sm w-full text-center shadow-2xl relative" onclick="event.stopPropagation()">
+      <h3 id="image-modal-title" class="text-sm font-bold text-slate-700 mb-3">画像プレビュー</h3>
+      <div class="w-48 h-48 mx-auto bg-slate-50 rounded-2xl p-2 border border-slate-200 flex items-center justify-center overflow-hidden mb-4">
+        <img id="image-modal-img" src="" alt="拡大画像" class="max-w-full max-h-full object-contain">
+      </div>
+      <button onclick="closeImageModal()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs">
+        閉じる
+      </button>
     </div>
   </div>
 
@@ -165,7 +177,7 @@
           alert("パスワードが間違っています。");
         }
       } catch (e) {
-        alert("通信エラーが発生しました。");
+        alert("通信エラーが発生しました: " + e.message);
       }
     }
 
@@ -189,16 +201,30 @@
       spotsBody.innerHTML = "";
 
       spotsData.forEach((spot, index) => {
+        // 画像の表示ロジック（アップロード画像があればそれを優先、無ければローカルのimage/stamp1.png）
+        const displayImg = spot.imageUrl ? spot.imageUrl : `image/stamp${spot.id}.png`;
+
         spotsBody.innerHTML += `
           <tr>
             <td class="p-2 font-bold">${spot.id}</td>
             <td class="p-2"><input type="text" value="${spot.name}" id="spot-name-${index}" class="border rounded p-1 w-full"></td>
             <td class="p-2"><input type="text" value="${spot.area}" id="spot-area-${index}" class="border rounded p-1 w-full"></td>
-            <td class="p-2">
-              <img src="image/image${spot.id}.png" onerror="this.src='https://placehold.co/50x50?text=No+Img'" class="w-8 h-8 rounded border object-contain">
+            <td class="p-2 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <!-- プレビュー画像（クリックで拡大） -->
+                <img src="${displayImg}" id="img-preview-${index}" onerror="this.src='https://placehold.co/100x100?text=No+Img'" 
+                     onclick="zoomImage('${displayImg}', '${spot.name}')"
+                     title="クリックで拡大"
+                     class="w-10 h-10 rounded border border-indigo-200 object-contain bg-white cursor-pointer hover:opacity-80 hover:scale-110 transition">
+                
+                <!-- 画像変更ファイル選択ボタン -->
+                <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 px-2 py-1 rounded text-[10px] font-bold">
+                  変更
+                  <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(event, ${index})">
+                </label>
+              </div>
             </td>
             <td class="p-2">
-              <!-- ★ QR発行ボタン -->
               <button onclick="openQrModal(${spot.id})" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1">
                 <i class="fa-solid fa-qrcode"></i> QR発行・表示
               </button>
@@ -224,7 +250,59 @@
       });
     }
 
-    // ★ QRコード生成＆モーダル表示処理
+    // ★ 画像選択時の処理（自動的に圧縮してBase64化）
+    function handleImageUpload(event, index) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          // スタンプ用に最大 200x200px にリサイズ（容量軽量化）
+          const canvas = document.createElement('canvas');
+          const maxDim = 200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+          } else {
+            if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 軽量化したDataURL（画像データ）を取得
+          const resizedDataUrl = canvas.toDataURL('image/png');
+          
+          // データにセット & プレビュー更新
+          spotsData[index].imageUrl = resizedDataUrl;
+          document.getElementById(`img-preview-${index}`).src = resizedDataUrl;
+          document.getElementById(`img-preview-${index}`).onclick = function() {
+            zoomImage(resizedDataUrl, spotsData[index].name);
+          };
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ★ 画像拡大モーダル表示
+    function zoomImage(imgSrc, name) {
+      document.getElementById('image-modal-title').innerText = `【拡大】${name}`;
+      document.getElementById('image-modal-img').src = imgSrc;
+      document.getElementById('image-modal').classList.remove('hidden');
+    }
+
+    function closeImageModal() {
+      document.getElementById('image-modal').classList.add('hidden');
+    }
+
+    // QRコード表示モーダル
     function openQrModal(spotId) {
       const spot = spotsData.find(s => s.id === spotId);
       if (!spot) return;
@@ -237,9 +315,8 @@
       currentQrFileName = `QR_${spot.area}_${spot.name}.png`;
 
       const container = document.getElementById('qrcode-container');
-      container.innerHTML = ""; // 前のQRを消去
+      container.innerHTML = "";
 
-      // ライブラリでQRコードをその場生成 (200x200px)
       new QRCode(container, {
         text: targetUrl,
         width: 200,
@@ -256,19 +333,14 @@
       document.getElementById('qr-modal').classList.add('hidden');
     }
 
-    // ★ 生成されたQRコードをPNG画像として直接ダウンロード
     function downloadQrCode() {
       const container = document.getElementById('qrcode-container');
-      // QRCode.jsは環境によってimg要素またはcanvas要素を生成します
       const img = container.querySelector('img');
       const canvas = container.querySelector('canvas');
       let imgDataUrl = "";
 
-      if (img && img.src) {
-        imgDataUrl = img.src;
-      } else if (canvas) {
-        imgDataUrl = canvas.toDataURL("image/png");
-      }
+      if (img && img.src) imgDataUrl = img.src;
+      else if (canvas) imgDataUrl = canvas.toDataURL("image/png");
 
       if (imgDataUrl) {
         const link = document.createElement('a');
@@ -277,19 +349,15 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-      } else {
-        alert("画像のダウンロードに失敗しました。少し待ってから再度お試しください。");
       }
     }
 
-    // スポット追加行
     function addNewSpotRow() {
       const newId = spotsData.length > 0 ? Math.max(...spotsData.map(s => s.id)) + 1 : 1;
       spotsData.push({ id: newId, name: `新スポット${newId}`, area: "未設定エリア", imageUrl: "" });
       renderDashboard();
     }
 
-    // スポット削除
     function removeSpotRow(index) {
       if (confirm("このスポットを削除しますか？")) {
         spotsData.splice(index, 1);
@@ -319,14 +387,13 @@
 
         const result = await response.json();
         if (result.status === "success") {
-          alert("スポット情報をスプレッドシートに保存しました！");
+          alert("スポット情報とスタンプ画像をスプレッドシートに保存しました！");
           loginAdmin();
         } else {
           alert("保存エラー: " + result.message);
         }
       } catch (e) {
-        alert("通信エラー詳細: " + e.message);
-        console.error(e);
+        alert("保存中に通信エラーが発生しました。");
       }
     }
   </script>
