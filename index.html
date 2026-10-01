@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>街めぐりデジタルスタンプラリー</title>
+  <!-- Tailwind CSS（デザインライブラリ） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- アイコン表示用 FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 min-h-screen pb-20 font-sans text-slate-800">
+
+  <!-- ヘッダー -->
+  <header class="bg-indigo-600 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+    <h1 class="font-bold text-lg flex items-center gap-2">
+      <i class="fa-solid font-sharp fa-stamp"></i> 街めぐりスタンプラリー
+    </h1>
+    <button onclick="openRestoreModal()" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded-full border border-indigo-400 transition">
+      <i class="fa-solid fa-rotate-left mr-1"></i>データ復元
+    </button>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-4">
+
+    <!-- 常時表示：ユーザー引き継ぎカード -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs text-slate-500 font-bold">あなたの引き継ぎコード</p>
+        <p id="card-user-code" class="text-xl font-mono font-extrabold text-indigo-600 tracking-wider">----</p>
+      </div>
+      <button onclick="showScreenshotModal(true)" class="text-xs bg-amber-50 text-amber-700 font-bold px-3 py-2 rounded-xl border border-amber-200 hover:bg-amber-100 flex items-center gap-1">
+        <i class="fa-solid fa-camera"></i> スクショ確認
+      </button>
+    </div>
+
+    <!-- スタンプ進捗 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+      <div class="flex justify-between items-center mb-3">
+        <span class="font-bold text-slate-700">現在の獲得状況</span>
+        <span id="stamp-count-text" class="text-sm font-bold text-indigo-600">0 / 6 個</span>
+      </div>
+      <!-- 進捗バー -->
+      <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div id="progress-bar" class="bg-indigo-600 h-full w-0 transition-all duration-500"></div>
+      </div>
+    </div>
+
+    <!-- スタンプ台紙 (6マス) -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+      <h2 class="font-bold text-slate-700 mb-3 text-center text-sm">スタンプカード</h2>
+      <div id="stamp-grid" class="grid grid-cols-3 gap-3">
+        <!-- JSで自動生成されます -->
+      </div>
+    </div>
+
+    <!-- 現地読み取りシミュレータ（開発・テスト用） -->
+    <div class="bg-slate-200 rounded-2xl p-4 text-center text-xs text-slate-600 space-y-2">
+      <p class="font-bold"><i class="fa-solid fa-vial mr-1"></i>現地QRスキャンテストボタン</p>
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="simulateQrScan(1)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット1</button>
+        <button onclick="simulateQrScan(2)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット2</button>
+        <button onclick="simulateQrScan(3)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット3</button>
+        <button onclick="simulateQrScan(4)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット4</button>
+        <button onclick="simulateQrScan(5)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット5</button>
+        <button onclick="simulateQrScan(6)" class="bg-white p-2 rounded shadow hover:bg-indigo-50">スポット6</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= モーダル1: 初回＆スクショ案内ポップアップ ================= -->
+  <div id="screenshot-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl relative animate-bounce-short">
+      
+      <!-- 警告バッジ -->
+      <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <i class="fa-solid fa-camera"></i>
+      </div>
+
+      <h3 class="text-xl font-extrabold text-slate-800 mb-1">画面をスクショしてください！</h3>
+      <p class="text-xs text-slate-500 mb-4">スマホのキャッシュ（履歴）が消えた際、このコードがないとスタンプが復元できなくなります。</p>
+
+      <!-- スクショ用強調カード -->
+      <div class="bg-slate-900 text-white rounded-2xl p-4 my-4 shadow-inner">
+        <p class="text-xs text-slate-400 font-bold mb-1">あなたの専用引き継ぎコード</p>
+        <p id="modal-user-code" class="text-3xl font-mono font-black text-amber-400 tracking-widest my-1">----</p>
+        <p class="text-[10px] text-slate-400">※この画面のスクリーンショットを保存してください</p>
+      </div>
+
+      <button onclick="closeScreenshotModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl shadow-lg transition">
+        スクショした！スタンプラリーへ
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= モーダル2: データ復元画面 ================= -->
+  <div id="restore-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+      <h3 class="text-lg font-bold text-slate-800 mb-2">スタンプデータの復元</h3>
+      <p class="text-xs text-slate-500 mb-4">保存しておいたスクリーンショットの「引き継ぎコード」を入力してください。</p>
+
+      <input type="text" id="restore-code-input" placeholder="例: STP-X8Y2" class="w-full text-center text-lg font-mono font-bold uppercase p-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-600 outline-none mb-4">
+
+      <div class="flex gap-2">
+        <button onclick="closeRestoreModal()" class="w-1/2 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl">キャンセル</button>
+        <button onclick="executeRestore()" class="w-1/2 bg-indigo-600 text-white font-bold py-3 rounded-xl">復元する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScriptロジック -->
+  <script>
+// ▼ここにご自身のGAS URLを入れてください（変更なしでOK）
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxiNmYw0-5AKITd3ESi4nkeysJFSAEnyt3Ibxs24QentQ5bqGKgCaAoqQ2uZN-1w1qDUw/exec";
+    
+    // スプレッドシートから読み込んだスポット情報を入れる変数
+    let spotDataList = [];
+
+    // 0. 一番最初にスプレッドシートからスポット情報を読み込む
+    async function fetchSpotsData() {
+      try {
+        const response = await fetch(GAS_URL);
+        const data = await response.json();
+        spotDataList = data.spots; // Spotsシートのデータをセット
+        
+        // データ取得後にユーザー初期化
+        initUser();
+      } catch (error) {
+        console.error("スポット情報の読み込みに失敗しました:", error);
+        alert("データの読み込みに失敗しました。再読み込みしてください。");
+      }
+    }
+
+    // 1. 初回訪問判定と引き継ぎコード発行
+    function initUser() {
+      let userCode = localStorage.getItem('stamp_user_code');
+      let isFirstVisit = false;
+
+      if (!userCode) {
+        const randStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+        userCode = `STP-${randStr}`;
+        localStorage.setItem('stamp_user_code', userCode);
+        localStorage.setItem('my_stamps', JSON.stringify([]));
+        isFirstVisit = true;
+      }
+
+      document.getElementById('card-user-code').innerText = userCode;
+      document.getElementById('modal-user-code').innerText = userCode;
+
+      // 取得した動的データを使ってボタンとスタンプを描画
+      renderTestButtons();
+      renderStamps();
+
+      if (isFirstVisit) showScreenshotModal(false);
+      checkUrlParams();
+    }
+
+    // 2. スタンプ獲得処理
+    function claimStamp(spotId) {
+      let stamps = JSON.parse(localStorage.getItem('my_stamps') || '[]');
+      const spotInfo = spotDataList.find(s => s.id === spotId);
+      
+      if (!spotInfo) return; // 存在しないスポットIDの場合
+
+      if (!stamps.includes(spotId)) {
+        stamps.push(spotId);
+        localStorage.setItem('my_stamps', JSON.stringify(stamps));
+        
+        // クラウド(GAS)へ同期送信
+        syncToCloudDB(localStorage.getItem('stamp_user_code'), stamps);
+
+        renderStamps();
+        alert(`🎉 ${spotInfo.area}エリアの「${spotInfo.name}」スタンプを獲得しました！`);
+      } else {
+        alert(`「${spotInfo.name}」は既に押されています。`);
+      }
+    }
+
+    // 3. スタンプカード描画（イラスト・エリア対応版）
+    function renderStamps() {
+      const stamps = JSON.parse(localStorage.getItem('my_stamps') || '[]');
+      const grid = document.getElementById('stamp-grid');
+      grid.innerHTML = '';
+
+      spotDataList.forEach(spot => {
+        const isStamped = stamps.includes(spot.id);
+        const card = document.createElement('div');
+        card.className = `aspect-square rounded-2xl border-2 flex flex-col items-center justify-center p-1 text-center transition-all ${
+          isStamped 
+            ? 'border-indigo-500 bg-indigo-50 shadow-sm scale-105' 
+            : 'border-dashed border-slate-300 bg-white'
+        }`;
+
+        // isStamped が true なら画像を表示、false ならグレーの未取得アイコン
+        const imageHtml = isStamped 
+          ? `<img src="${spot.imageUrl}" alt="${spot.name}" class="w-12 h-12 object-contain mb-1 rounded-full border border-indigo-200">`
+          : `<div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1 text-slate-300"><i class="fa-solid fa-stamp text-xl"></i></div>`;
+
+        card.innerHTML = `
+          ${imageHtml}
+          <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-1 rounded-sm mb-0.5">${spot.area}</span>
+          <span class="text-[10px] font-bold leading-tight ${isStamped ? 'text-indigo-900' : 'text-slate-400'}">${spot.name}</span>
+        `;
+        grid.appendChild(card);
+      });
+
+      // 進捗テキスト更新
+      document.getElementById('stamp-count-text').innerText = `${stamps.length} / ${spotDataList.length} 個`;
+      
+      const progressPercent = spotDataList.length > 0 ? (stamps.length / spotDataList.length) * 100 : 0;
+      document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+    }
+
+    // テストボタンも動的生成にする
+    function renderTestButtons() {
+      const btnContainer = document.querySelector('.grid-cols-3');
+      btnContainer.innerHTML = '';
+      spotDataList.forEach(spot => {
+        btnContainer.innerHTML += `<button onclick="simulateQrScan(${spot.id})" class="bg-white p-2 rounded shadow hover:bg-indigo-50 text-[10px] font-bold">${spot.name}</button>`;
+      });
+    }
+
+    // 4. 無料クラウド連携用関数
+    function syncToCloudDB(userCode, stamps) {
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ userCode: userCode, stamps: stamps })
+      }).catch(error => console.error("クラウド同期エラー:", error));
+    }
+
+    // --- その他モーダル制御や復元処理 ---
+    function executeRestore() {
+      const codeInput = document.getElementById('restore-code-input').value.trim().toUpperCase();
+      if (!codeInput) return alert("引き継ぎコードを入力してください。");
+      localStorage.setItem('stamp_user_code', codeInput);
+      document.getElementById('card-user-code').innerText = codeInput;
+      document.getElementById('modal-user-code').innerText = codeInput;
+      closeRestoreModal();
+      alert(`データを同期・復元しました！`);
+      renderStamps();
+    }
+
+    function showScreenshotModal(manual) { document.getElementById('screenshot-modal').classList.remove('hidden'); }
+    function closeScreenshotModal() { document.getElementById('screenshot-modal').classList.add('hidden'); }
+    function openRestoreModal() { document.getElementById('restore-modal').classList.remove('hidden'); }
+    function closeRestoreModal() { document.getElementById('restore-modal').classList.add('hidden'); }
+
+    function checkUrlParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const spotParam = urlParams.get('spot');
+      if (spotParam) claimStamp(parseInt(spotParam));
+    }
+    function simulateQrScan(spotId) { claimStamp(spotId); }
+
+    // アプリ起動（最初にfetchSpotsDataを呼ぶように変更）
+    window.onload = fetchSpotsData;
+  </script>
+</body>
+</html>
+
